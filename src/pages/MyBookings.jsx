@@ -333,9 +333,17 @@ export const MyBookings = () => {
                             {booking.noOfSeats} {booking.noOfSeats === 1 ? 'Passenger' : 'Passengers'}
                           </p>
                           {cachedManifest?.passengers && cachedManifest.passengers.length > 0 && (
-                            <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[200px]" title={cachedManifest.passengers.map(p => `${p.title} ${p.name || 'Traveler'}`).join(', ')}>
-                              {cachedManifest.passengers.map(p => `${p.title} ${p.name || 'Traveler'}`).join(', ')}
-                            </p>
+                            <div className="flex flex-wrap gap-1 mt-1.5 md:justify-end max-w-[260px]">
+                              {cachedManifest.passengers.map((p, pIdx) => (
+                                <span 
+                                  key={pIdx} 
+                                  className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-300 font-mono font-medium"
+                                  title={`${p.title} ${p.name || 'Traveler'} • Seat ${p.assignedSeat || 'Assigned'}`}
+                                >
+                                  {p.name ? p.name.split(' ')[0] : `P${pIdx + 1}`}: {p.assignedSeat || 'Auto'}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
 

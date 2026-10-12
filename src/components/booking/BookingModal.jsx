@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { bookingApi } from '../../api/client';
+import { SeatMapModal } from './SeatMapModal';
 
 export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose, onBookingSuccess }) => {
   const { isAuthenticated, userEmail } = useAuth();
@@ -21,8 +22,13 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
       category: 'Adult',
       seatPreference: 'Window',
       mealPreference: 'Standard Snack',
+      assignedSeat: null,
+      seatClass: null,
+      seatType: null,
     }
   ]);
+  const [showSeatMap, setShowSeatMap] = useState(false);
+  const [seatMapActiveIdx, setSeatMapActiveIdx] = useState(0);
   const [passengerEmail, setPassengerEmail] = useState(userEmail || '');
   const [passengerPhone, setPassengerPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('card'); // card | upi | netbanking
@@ -59,6 +65,9 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
             category: 'Adult',
             seatPreference: i % 3 === 1 ? 'Window' : (i % 3 === 2 ? 'Aisle' : 'Extra Legroom'),
             mealPreference: 'Standard Snack',
+            assignedSeat: null,
+            seatClass: null,
+            seatType: null,
           });
         }
         setPassengers([...passengers, ...added]);
@@ -66,6 +75,15 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
         setPassengers(passengers.slice(0, next));
       }
     }
+  };
+
+  const handleOpenSeatMap = (passengerIdx = 0) => {
+    setSeatMapActiveIdx(passengerIdx);
+    setShowSeatMap(true);
+  };
+
+  const handleSaveSeatsFromMap = (updatedPassengers) => {
+    setPassengers(updatedPassengers);
   };
 
   const updatePassenger = (index, field, value) => {
@@ -106,6 +124,41 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
     setLoading(true);
 
     try {
+      // Auto-assign seats for any passenger who didn't explicitly pick one
+      const assignedCols = ['A', 'B', 'C', 'D', 'E', 'F'];
+      const usedSeats = new Set(passengers.filter(p => p.assignedSeat).map(p => p.assignedSeat));
+      let fallbackRow = 14;
+      let colIdx = 0;
+
+      const finalizedPassengers = passengers.map((p, idx) => {
+        if (p.assignedSeat) return p;
+        
+        while (usedSeats.has(`${fallbackRow}${assignedCols[colIdx]}`)) {
+          colIdx++;
+          if (colIdx >= assignedCols.length) {
+            colIdx = 0;
+            fallbackRow++;
+          }
+        }
+        const generatedSeat = `${fallbackRow}${assignedCols[colIdx]}`;
+        usedSeats.add(generatedSeat);
+        const isWin = assignedCols[colIdx] === 'A' || assignedCols[colIdx] === 'F';
+        const isAisle = assignedCols[colIdx] === 'C' || assignedCols[colIdx] === 'D';
+
+        colIdx++;
+        if (colIdx >= assignedCols.length) {
+          colIdx = 0;
+          fallbackRow++;
+        }
+
+        return {
+          ...p,
+          assignedSeat: generatedSeat,
+          seatClass: 'Economy',
+          seatType: isWin ? 'Window' : (isAisle ? 'Aisle' : 'Middle')
+        };
+      });
+
       const payload = {
         flightId: flight.id,
         noOfSeats: Number(noOfSeats),
@@ -123,7 +176,7 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
             bookingId: bookingResult.id,
             flightId: flight.id,
             noOfSeats: Number(noOfSeats),
-            passengers,
+            passengers: finalizedPassengers,
             primaryEmail: passengerEmail,
             primaryPhone: passengerPhone,
             totalCost: bookingResult.totalCost || totalPayable,
@@ -136,9 +189,9 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
 
         onBookingSuccess(bookingResult, {
           ...flight,
-          passengers,
-          passengerName: `${passengers[0].title} ${passengers[0].name}`,
-          seatPreference: passengers[0].seatPreference,
+          passengers: finalizedPassengers,
+          passengerName: `${finalizedPassengers[0].title} ${finalizedPassengers[0].name}`,
+          seatPreference: finalizedPassengers[0].assignedSeat,
         });
       } else {
         setError(response.data?.message || 'Failed to complete reservation. Please retry.');
@@ -257,14 +310,25 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
 
           {/* Dynamic Multi-Passenger Information Forms */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-blue-400" />
-                Passenger Manifest ({noOfSeats} {noOfSeats === 1 ? 'Traveler' : 'Travelers'})
-              </h4>
-              <span className="text-[11px] text-slate-500">
-                Names must match official Government Photo ID
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-blue-400" />
+                  Passenger Manifest ({noOfSeats} {noOfSeats === 1 ? 'Traveler' : 'Travelers'})
+                </h4>
+                <span className="text-[11px] text-slate-500">
+                  Names must match official Government Photo ID
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handleOpenSeatMap(0)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 hover:text-white text-xs font-bold transition-all shadow-sm"
+              >
+                <Armchair className="w-3.5 h-3.5 text-blue-400" />
+                Select Seats on 2D Cabin Map
+              </button>
             </div>
 
             <div className="space-y-3">
@@ -334,45 +398,48 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
                     </div>
                   </div>
 
-                  {/* Seat Preference & Meal Options for This Specific Passenger */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    <div className="space-y-1">
-                      <label className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <Armchair className="w-3 h-3 text-slate-400" /> Seat Preference
-                      </label>
-                      <div className="grid grid-cols-3 gap-1">
-                        {['Window', 'Aisle', 'Extra Legroom'].map((pref) => (
-                          <button
-                            key={pref}
-                            type="button"
-                            onClick={() => updatePassenger(index, 'seatPreference', pref)}
-                            className={`py-1.5 px-1 text-[10px] font-semibold rounded-lg border transition-all text-center ${
-                              p.seatPreference === pref
-                                ? 'bg-blue-600 text-white border-blue-500 shadow-sm'
-                                : 'bg-slate-900/80 text-slate-400 border-slate-700 hover:text-white'
-                            }`}
-                          >
-                            {pref}
-                          </button>
-                        ))}
-                      </div>
+                  {/* Allocated 2D Cabin Seat & Meal Options */}
+                  <div className="pt-2 border-t border-slate-700/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Armchair className="w-4 h-4 text-blue-400" />
+                      <span className="text-[11px] text-slate-300 font-medium">Cabin Seat:</span>
+                      {p.assignedSeat ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono font-bold text-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          Seat {p.assignedSeat} ({p.seatClass || 'Economy'} • {p.seatType || 'Assigned'})
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-amber-400/90 italic">
+                          Not selected (Will be auto-assigned)
+                        </span>
+                      )}
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[11px] text-slate-400 flex items-center gap-1">
-                        <UtensilsCrossed className="w-3 h-3 text-slate-400" /> In-Flight Meal / Refreshment
-                      </label>
-                      <select
-                        value={p.mealPreference}
-                        onChange={(e) => updatePassenger(index, 'mealPreference', e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
-                      >
-                        <option value="Standard Snack">Standard Snack & Beverages (Complimentary)</option>
-                        <option value="Vegetarian Meal">Vegetarian Warm Meal (Special Request)</option>
-                        <option value="Diabetic / Healthy">Diabetic & Low Sodium Meal</option>
-                        <option value="No Meal">No In-Flight Refreshment</option>
-                      </select>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenSeatMap(index)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-blue-400 hover:text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors self-start sm:self-auto"
+                    >
+                      <Armchair className="w-3.5 h-3.5" />
+                      {p.assignedSeat ? 'Change Seat on Map' : 'Select Seat on 2D Map'}
+                    </button>
+                  </div>
+
+                  {/* Meal Options for This Specific Passenger */}
+                  <div className="space-y-1 pt-1">
+                    <label className="text-[11px] text-slate-400 flex items-center gap-1">
+                      <UtensilsCrossed className="w-3 h-3 text-slate-400" /> In-Flight Meal / Refreshment
+                    </label>
+                    <select
+                      value={p.mealPreference}
+                      onChange={(e) => updatePassenger(index, 'mealPreference', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer"
+                    >
+                      <option value="Standard Snack">Standard Snack & Beverages (Complimentary)</option>
+                      <option value="Vegetarian Meal">Vegetarian Warm Meal (Special Request)</option>
+                      <option value="Diabetic / Healthy">Diabetic & Low Sodium Meal</option>
+                      <option value="No Meal">No In-Flight Refreshment</option>
+                    </select>
                   </div>
 
                 </div>
@@ -492,6 +559,17 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
         </form>
 
       </div>
+
+      {/* Interactive 2D Aircraft Cabin Seat Map Modal */}
+      {showSeatMap && (
+        <SeatMapModal
+          flight={flight}
+          passengers={passengers}
+          initialActiveIndex={seatMapActiveIdx}
+          onSaveSeats={handleSaveSeatsFromMap}
+          onClose={() => setShowSeatMap(false)}
+        />
+      )}
     </div>
   );
 };

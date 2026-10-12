@@ -9,7 +9,8 @@ Modern Single-Page Application (SPA) providing an interactive user interface for
 - **Runtime & Build Engine**: [Vite](https://vite.dev/) + React 19
 - **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
 - **Routing**: [React Router v7](https://reactrouter.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
+- **Interactive 2D Aircraft Cabin Seat Map**: Visual fuselage floorplan (Airbus A320neo) featuring Business Class (2-2 configuration), Economy Class (3-3 configuration), Emergency Exit extra legroom rows, deterministic real-time occupancy indicators, and multi-passenger interactive seat assignment.
+- **Multi-Passenger Travel Manifest**: Collects full legal name, title, age category, seat selection, and dietary preferences for all traveling passengers with instant boarding pass generation.
 - **HTTP Client**: [Axios](https://axios-http.com/)
   - **Request Interceptor**: Injects `x-access-token` JWT and auto-generates/propagates `x-correlation-id` for distributed end-to-end tracing.
   - **Response Interceptor**: Extracts correlation headers and provides centralized downstream error handling (503 Service Unavailable, 504 Gateway Timeout).

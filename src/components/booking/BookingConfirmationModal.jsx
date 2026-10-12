@@ -55,14 +55,17 @@ export const BookingConfirmationModal = ({ booking, flight, airportsMap = {}, ci
   
   // Seat letters generator
   const seatLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
-  const getSeatAssignment = (idx, preference) => {
+  const getSeatAssignment = (idx, passenger) => {
+    if (passenger?.assignedSeat) {
+      return `${passenger.assignedSeat} (${passenger.seatClass || 'Economy'}${passenger.seatType ? ` • ${passenger.seatType}` : ''})`;
+    }
     const row = 12;
     const letter = seatLetters[idx % seatLetters.length];
-    return `${row}${letter} (${preference || 'Assigned'})`;
+    return `${row}${letter} (${passenger?.seatPreference || 'Assigned'})`;
   };
 
   const activePassenger = passengerList[activePassengerIdx] || passengerList[0];
-  const activeSeat = getSeatAssignment(activePassengerIdx, activePassenger.seatPreference);
+  const activeSeat = getSeatAssignment(activePassengerIdx, activePassenger);
 
   const handlePrint = () => {
     window.print();
@@ -120,7 +123,7 @@ export const BookingConfirmationModal = ({ booking, flight, airportsMap = {}, ci
                   </span>
                   <span>{p.title} {p.name || `Traveler ${idx + 1}`}</span>
                   <span className="text-[10px] opacity-75 font-mono">
-                    ({getSeatAssignment(idx, p.seatPreference).split(' ')[0]})
+                    ({getSeatAssignment(idx, p).split(' ')[0]})
                   </span>
                 </button>
               ))}
