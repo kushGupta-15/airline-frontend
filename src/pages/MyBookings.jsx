@@ -241,6 +241,14 @@ export const MyBookings = () => {
 
                 const pnr = `SKF-${booking.id.toString().padStart(5, '0')}`;
 
+                let cachedManifest = null;
+                try {
+                  const raw = localStorage.getItem(`skyflow_booking_${booking.id}`);
+                  if (raw) cachedManifest = JSON.parse(raw);
+                } catch (e) {
+                  // Ignore parse error
+                }
+
                 return (
                   <div
                     key={booking.id}
@@ -324,6 +332,11 @@ export const MyBookings = () => {
                           <p className="text-base font-bold text-white mt-0.5">
                             {booking.noOfSeats} {booking.noOfSeats === 1 ? 'Passenger' : 'Passengers'}
                           </p>
+                          {cachedManifest?.passengers && cachedManifest.passengers.length > 0 && (
+                            <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[200px]" title={cachedManifest.passengers.map(p => `${p.title} ${p.name || 'Traveler'}`).join(', ')}>
+                              {cachedManifest.passengers.map(p => `${p.title} ${p.name || 'Traveler'}`).join(', ')}
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -348,7 +361,10 @@ export const MyBookings = () => {
                           onClick={() => {
                             setActiveBoardingPass({
                               booking,
-                              flight: flight || { flightNumber: `SF-${booking.flightId}` }
+                              flight: {
+                                ...(flight || { flightNumber: `SF-${booking.flightId}` }),
+                                passengers: cachedManifest?.passengers
+                              }
                             });
                           }}
                           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
