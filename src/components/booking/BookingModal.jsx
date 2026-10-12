@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Plane, X, Armchair, Plus, Minus, CreditCard, ShieldCheck, 
-  AlertCircle, Sparkles, Loader2, User, Mail, Phone, Lock 
+  X, Armchair, Plus, Minus, ShieldCheck, 
+  AlertCircle, Sparkles, Loader2, User, Mail, Lock 
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { bookingApi } from '../../api/client';
@@ -14,7 +14,6 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
   const [noOfSeats, setNoOfSeats] = useState(1);
   const [passengerName, setPassengerName] = useState('');
   const [passengerEmail, setPassengerEmail] = useState(userEmail || '');
-  const [passengerPhone, setPassengerPhone] = useState('');
   const [seatPreference, setSeatPreference] = useState('Window'); // Window | Aisle | Middle
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);

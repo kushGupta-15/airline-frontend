@@ -7,6 +7,7 @@ import { FlightSearch } from './pages/FlightSearch';
 import { HomePage } from './pages/HomePage';
 import { BookingsPage } from './pages/BookingsPage';
 import { MyBookings } from './pages/MyBookings';
+import { HealthDashboard } from './pages/HealthDashboard';
 import { TelemetryPage } from './pages/TelemetryPage';
 import { AuthPage } from './pages/AuthPage';
 
@@ -35,7 +36,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="telemetry" element={<TelemetryPage />} />
+            <Route path="telemetry" element={<HealthDashboard />} />
+            <Route path="health" element={<HealthDashboard />} />
             <Route path="auth" element={<AuthPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

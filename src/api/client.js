@@ -18,9 +18,32 @@ const generateCorrelationId = () => {
   return 'corr-' + Date.now() + '-' + Math.random().toString(36).substring(2, 9);
 };
 
-// Request Interceptor: Injects auth token and correlation ID
+// In-memory trace history store for Inspector
+const MAX_TRACES = 50;
+export const traceHistory = [];
+const traceListeners = new Set();
+
+export const subscribeToTraces = (callback) => {
+  traceListeners.add(callback);
+  callback([...traceHistory]);
+  return () => traceListeners.delete(callback);
+};
+
+const recordTrace = (trace) => {
+  traceHistory.unshift(trace);
+  if (traceHistory.length > MAX_TRACES) {
+    traceHistory.pop();
+  }
+  traceListeners.forEach((listener) => {
+    try { listener([...traceHistory]); } catch (_) {}
+  });
+};
+
+// Request Interceptor: Injects auth token, correlation ID, and tracks timestamp
 apiClient.interceptors.request.use(
   (config) => {
+    config.metadata = { startTime: performance.now() };
+
     // 1. Inject JWT access token if present in localStorage
     const token = localStorage.getItem('airline_token');
     if (token) {
@@ -42,6 +65,8 @@ apiClient.interceptors.request.use(
 // Response Interceptor: Centralized error handling and tracing extraction
 apiClient.interceptors.response.use(
   (response) => {
+    const latency = response.config?.metadata ? Math.round(performance.now() - response.config.metadata.startTime) : 0;
+
     // Track returned correlation ID from API Gateway
     const traceId = response.headers['x-correlation-id'];
     if (traceId) {
@@ -58,10 +83,23 @@ apiClient.interceptors.response.use(
       response.cacheStatus = 'MISS';
     }
 
+    recordTrace({
+      id: traceId || response.config?.headers?.['x-correlation-id'] || 'trace-' + Date.now(),
+      method: (response.config?.method || 'GET').toUpperCase(),
+      url: response.config?.url,
+      status: response.status,
+      statusText: response.statusText,
+      duration: latency,
+      timestamp: new Date().toLocaleTimeString(),
+      cacheStatus: response.cacheStatus,
+      success: true,
+    });
+
     return response;
   },
   (error) => {
-    const correlationId = error.config?.headers?.['x-correlation-id'];
+    const correlationId = error.config?.headers?.['x-correlation-id'] || 'trace-err';
+    const latency = error.config?.metadata ? Math.round(performance.now() - error.config.metadata.startTime) : 0;
     let errorMessage = 'An unexpected error occurred';
     let statusCode = error.response?.status;
 
@@ -70,7 +108,6 @@ apiClient.interceptors.response.use(
       errorMessage = data?.err || data?.message || `Gateway returned error (${statusCode})`;
 
       if (statusCode === 401) {
-        // Token expired or invalid
         console.warn(`[Tracing: ${correlationId}] Unauthorized request to ${error.config?.url}`);
       } else if (statusCode === 503) {
         errorMessage = 'Downstream microservice is temporarily unavailable (503 Service Unavailable)';
@@ -84,6 +121,19 @@ apiClient.interceptors.response.use(
     // Attach enriched metadata
     error.formattedMessage = errorMessage;
     error.correlationId = correlationId;
+
+    recordTrace({
+      id: correlationId,
+      method: (error.config?.method || 'GET').toUpperCase(),
+      url: error.config?.url || 'unknown',
+      status: statusCode || 500,
+      statusText: error.message,
+      duration: latency,
+      timestamp: new Date().toLocaleTimeString(),
+      cacheStatus: 'MISS',
+      success: false,
+      error: errorMessage,
+    });
 
     return Promise.reject(error);
   }
@@ -112,6 +162,7 @@ export const bookingApi = {
 export const systemApi = {
   getHealth: () => apiClient.get('/health'),
   getMetrics: () => apiClient.get('/metrics'),
+  getClusterOverview: () => apiClient.get('/system/overview'),
 };
 
 export default apiClient;

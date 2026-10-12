@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Plane, Search, ArrowLeftRight, Calendar, SlidersHorizontal, 
-  RotateCcw, AlertTriangle, ArrowUpDown, Sparkles, Filter, 
-  CheckCircle2, X
+  RotateCcw, AlertTriangle, ArrowUpDown, Sparkles, Filter 
 } from 'lucide-react';
 import { flightApi } from '../api/client';
 import { FlightCard } from '../components/flights/FlightCard';

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { 
-  Ticket, Plane, Calendar, Clock, CreditCard, Armchair, 
-  CheckCircle2, Clock3, XCircle, ArrowRight, RefreshCw, 
-  AlertTriangle, BellRing, Hash, Sparkles, Filter 
+  Ticket, Plane, Armchair, 
+  Clock3, XCircle, ArrowRight, RefreshCw, 
+  AlertTriangle, BellRing, Sparkles 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { bookingApi, flightApi } from '../api/client';
