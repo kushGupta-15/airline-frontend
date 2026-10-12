@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Plane, Search, ArrowLeftRight, Calendar, SlidersHorizontal, 
-  RotateCcw, AlertTriangle, ArrowUpDown, Sparkles, Filter 
+  RotateCcw, AlertTriangle, ArrowUpDown, Sparkles, Filter, 
+  ShieldCheck, Clock, CheckCircle2, Zap, Users, Tag
 } from 'lucide-react';
 import { flightApi } from '../api/client';
 import { FlightCard } from '../components/flights/FlightCard';
-import { RedisCacheBadge } from '../components/flights/RedisCacheBadge';
 import { BookingModal } from '../components/booking/BookingModal';
 import { BookingConfirmationModal } from '../components/booking/BookingConfirmationModal';
 
@@ -16,11 +16,18 @@ export const FlightSearch = () => {
   const [citiesMap, setCitiesMap] = useState({});
   const [airportsMap, setAirportsMap] = useState({});
 
-  // Filter & Search states
+  // Search form states
+  const [tripType, setTripType] = useState('oneway'); // oneway | roundtrip
+  const [cabinClass, setCabinClass] = useState('Economy');
+  const [passengerCount, setPassengerCount] = useState(1);
   const [departureAirportId, setDepartureAirportId] = useState('');
   const [arrivalAirportId, setArrivalAirportId] = useState('');
   const [departureDate, setDepartureDate] = useState('');
+
+  // Filter states
   const [maxPrice, setMaxPrice] = useState(10000);
+  const [selectedAirlines, setSelectedAirlines] = useState([]); // ['AI', '6E', 'SG', 'QP', 'UK']
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('ALL'); // ALL | morning | afternoon | evening
   const [minSeats, setMinSeats] = useState(0);
   const [sortBy, setSortBy] = useState('price-asc'); // price-asc | price-desc | time-asc | seats-desc
 
@@ -28,9 +35,6 @@ export const FlightSearch = () => {
   const [flights, setFlights] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [cacheStatus, setCacheStatus] = useState('MISS');
-  const [correlationId, setCorrelationId] = useState('');
-  const [queryLatency, setQueryLatency] = useState(null);
   const [selectedFlightForBooking, setSelectedFlightForBooking] = useState(null);
   const [confirmedBooking, setConfirmedBooking] = useState(null);
 
@@ -72,7 +76,6 @@ export const FlightSearch = () => {
   const executeSearch = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const startTime = performance.now();
 
     try {
       const params = {};
@@ -83,21 +86,15 @@ export const FlightSearch = () => {
       if (minSeats && minSeats > 0) params.minSeats = minSeats;
 
       const response = await flightApi.getFlights(params);
-      const endTime = performance.now();
-      setQueryLatency(Math.round(endTime - startTime));
 
       if (response.data?.success) {
         setFlights(response.data.data || []);
       } else {
         setFlights([]);
       }
-
-      setCacheStatus(response.cacheStatus || 'MISS');
-      setCorrelationId(response.correlationId || '');
     } catch (err) {
       console.error('[FlightSearch] Query error:', err);
-      setError(err.formattedMessage || 'Failed to fetch flights from API Gateway');
-      setCorrelationId(err.correlationId || '');
+      setError('Unable to fetch live flight schedules right now. Please verify your connection and retry.');
     } finally {
       setLoading(false);
     }
@@ -122,156 +119,226 @@ export const FlightSearch = () => {
     setDepartureDate('');
     setMaxPrice(10000);
     setMinSeats(0);
+    setSelectedAirlines([]);
+    setSelectedTimeSlot('ALL');
     setSortBy('price-asc');
   };
 
-  // Sort results client-side
-  const sortedFlights = [...flights].sort((a, b) => {
-    if (sortBy === 'price-asc') return a.price - b.price;
-    if (sortBy === 'price-desc') return b.price - a.price;
-    if (sortBy === 'seats-desc') return (b.totalSeats || 0) - (a.totalSeats || 0);
-    if (sortBy === 'time-asc') {
-      return new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime();
-    }
-    return 0;
-  });
+  // Toggle airline filter
+  const toggleAirline = (prefix) => {
+    setSelectedAirlines((prev) => 
+      prev.includes(prefix) ? prev.filter((p) => p !== prefix) : [...prev, prefix]
+    );
+  };
+
+  // Client-side filtering & sorting
+  const filteredFlights = useMemo(() => {
+    return flights.filter((flight) => {
+      // Airline prefix filter
+      if (selectedAirlines.length > 0) {
+        const prefix = flight.flightNumber?.split('-')[0];
+        if (!selectedAirlines.includes(prefix)) return false;
+      }
+
+      // Time slot filter
+      if (selectedTimeSlot !== 'ALL' && flight.departureTime) {
+        const hours = new Date(flight.departureTime).getHours();
+        if (selectedTimeSlot === 'morning' && (hours < 6 || hours >= 12)) return false;
+        if (selectedTimeSlot === 'afternoon' && (hours < 12 || hours >= 18)) return false;
+        if (selectedTimeSlot === 'evening' && (hours < 18 || hours >= 24)) return false;
+      }
+
+      return true;
+    });
+  }, [flights, selectedAirlines, selectedTimeSlot]);
+
+  const sortedFlights = useMemo(() => {
+    return [...filteredFlights].sort((a, b) => {
+      if (sortBy === 'price-asc') return a.price - b.price;
+      if (sortBy === 'price-desc') return b.price - a.price;
+      if (sortBy === 'seats-desc') return (b.totalSeats || 0) - (a.totalSeats || 0);
+      if (sortBy === 'time-asc') {
+        return new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime();
+      }
+      return 0;
+    });
+  }, [filteredFlights, sortBy]);
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Search Header Banner */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950/80 to-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl">
+      
+      {/* Flight Search Hero Banner */}
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl">
         <div className="max-w-3xl space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-medium text-blue-400">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-semibold text-blue-400">
             <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-            Interactive Search Engine • Microservices Gateway
+            Official SkyFlow Flight Booking Portal
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            Discover & Book Flight Routes
+            Book Flights at the Best Fares
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base">
-            Real-time flight discovery with multi-city routing, sub-millisecond Redis caching, and distributed tracing.
+          <p className="text-slate-300 text-xs sm:text-sm">
+            Compare non-stop routes across top domestic airlines. Enjoy instant confirmation, seat choice, and 24/7 flight assistance.
           </p>
         </div>
 
-        {/* Dynamic Search Controls */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-12 gap-4 bg-slate-900/90 border border-slate-800 p-5 rounded-2xl shadow-xl backdrop-blur-md">
-          {/* Departure Airport Selector */}
-          <div className="md:col-span-5 space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Plane className="w-3.5 h-3.5 text-blue-400" /> Departure Origin
-            </label>
-            <select
-              value={departureAirportId}
-              onChange={(e) => setDepartureAirportId(e.target.value)}
-              className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
-            >
-              <option value="">All Departure Cities & Airports</option>
-              {airports.map((airport) => {
-                const cityName = citiesMap[airport.cityId]?.name || 'City';
-                return (
-                  <option key={airport.id} value={airport.id}>
-                    {cityName} — {airport.name}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Airport Swap Button */}
-          <div className="md:col-span-2 flex items-end justify-center pb-1">
-            <button
-              onClick={handleSwapAirports}
-              type="button"
-              className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-90 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-md"
-              title="Swap Departure and Arrival Airports"
-            >
-              <ArrowLeftRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Arrival Airport Selector */}
-          <div className="md:col-span-5 space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Plane className="w-3.5 h-3.5 text-blue-400 rotate-90" /> Arrival Destination
-            </label>
-            <select
-              value={arrivalAirportId}
-              onChange={(e) => setArrivalAirportId(e.target.value)}
-              className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
-            >
-              <option value="">All Arrival Destinations</option>
-              {airports.map((airport) => {
-                const cityName = citiesMap[airport.cityId]?.name || 'City';
-                return (
-                  <option key={airport.id} value={airport.id}>
-                    {cityName} — {airport.name}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
-          {/* Date Picker */}
-          <div className="md:col-span-4 space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-blue-400" /> Departure Date
-            </label>
-            <input
-              type="date"
-              value={departureDate}
-              onChange={(e) => setDepartureDate(e.target.value)}
-              className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
-            />
-          </div>
-
-          {/* Price Range Slider */}
-          <div className="md:col-span-4 space-y-1.5">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
-              <span className="flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" /> Max Budget
-              </span>
-              <span className="text-blue-400 font-mono font-bold">
-                {maxPrice >= 10000 ? 'Any Budget' : `₹${maxPrice.toLocaleString('en-IN')}`}
-              </span>
+        {/* Flight Booking Panel */}
+        <div className="mt-6 bg-slate-900/90 border border-slate-800 p-5 sm:p-6 rounded-2xl shadow-xl backdrop-blur-md space-y-5">
+          
+          {/* Trip Type & Cabin Class Selector */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setTripType('oneway')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  tripType === 'oneway' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                }`}
+              >
+                One-Way
+              </button>
+              <button
+                type="button"
+                onClick={() => setTripType('roundtrip')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  tripType === 'roundtrip' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white bg-slate-800/60'
+                }`}
+              >
+                Round-Trip
+              </button>
             </div>
-            <input
-              type="range"
-              min="2000"
-              max="10000"
-              step="500"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-            <div className="flex justify-between text-[10px] text-slate-500">
-              <span>₹2,000</span>
-              <span>₹6,000</span>
-              <span>₹10,000+</span>
+
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5 text-slate-300">
+                <Users className="w-3.5 h-3.5 text-blue-400" />
+                <select
+                  value={passengerCount}
+                  onChange={(e) => setPassengerCount(Number(e.target.value))}
+                  className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <option key={n} value={n}>{n} {n === 1 ? 'Passenger' : 'Passengers'}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1.5 text-slate-300">
+                <Tag className="w-3.5 h-3.5 text-blue-400" />
+                <select
+                  value={cabinClass}
+                  onChange={(e) => setCabinClass(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none cursor-pointer"
+                >
+                  <option value="Economy">Economy</option>
+                  <option value="Premium">Premium Economy</option>
+                  <option value="Business">Business Class</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Seat Availability Filter */}
-          <div className="md:col-span-4 space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-              <Filter className="w-3.5 h-3.5 text-blue-400" /> Min Seats Required
-            </label>
-            <select
-              value={minSeats}
-              onChange={(e) => setMinSeats(Number(e.target.value))}
-              className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all cursor-pointer"
-            >
-              <option value="0">Any Availability (1+ seats)</option>
-              <option value="50">At least 50 seats</option>
-              <option value="150">At least 150 seats</option>
-              <option value="200">At least 200 seats</option>
-            </select>
+          {/* Route & Date Input Controls */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+            {/* Origin Airport */}
+            <div className="md:col-span-5 space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Plane className="w-3.5 h-3.5 text-blue-400" /> From (Origin City)
+              </label>
+              <select
+                value={departureAirportId}
+                onChange={(e) => setDepartureAirportId(e.target.value)}
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+              >
+                <option value="">All Departure Cities</option>
+                {airports.map((airport) => {
+                  const cityName = citiesMap[airport.cityId]?.name || 'City';
+                  return (
+                    <option key={airport.id} value={airport.id}>
+                      {cityName} — {airport.name}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Swap Button */}
+            <div className="md:col-span-2 flex items-end justify-center pb-1">
+              <button
+                onClick={handleSwapAirports}
+                type="button"
+                className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-90 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all shadow-md"
+                title="Swap Departure and Arrival Cities"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Destination Airport */}
+            <div className="md:col-span-5 space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Plane className="w-3.5 h-3.5 text-blue-400 rotate-90" /> To (Destination City)
+              </label>
+              <select
+                value={arrivalAirportId}
+                onChange={(e) => setArrivalAirportId(e.target.value)}
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500 transition-all cursor-pointer"
+              >
+                <option value="">All Destination Cities</option>
+                {airports.map((airport) => {
+                  const cityName = citiesMap[airport.cityId]?.name || 'City';
+                  return (
+                    <option key={airport.id} value={airport.id}>
+                      {cityName} — {airport.name}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* Departure Date */}
+            <div className="md:col-span-6 space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-blue-400" /> Travel Date
+              </label>
+              <input
+                type="date"
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
+                className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
+              />
+            </div>
+
+            {/* Max Budget Slider */}
+            <div className="md:col-span-6 space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
+                <span className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-blue-400" /> Maximum Price Budget
+                </span>
+                <span className="text-blue-400 font-mono font-bold">
+                  {maxPrice >= 10000 ? 'Any Budget' : `₹${maxPrice.toLocaleString('en-IN')}`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="2000"
+                max="10000"
+                step="500"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+              <div className="flex justify-between text-[10px] text-slate-500">
+                <span>₹2,000</span>
+                <span>₹6,000</span>
+                <span>₹10,000+</span>
+              </div>
+            </div>
           </div>
 
-          {/* Action Row */}
-          <div className="md:col-span-12 flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800">
-            {/* Quick date pills */}
+          {/* Quick Date Pills & Action Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
             <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span className="text-slate-400 text-[11px] mr-1 hidden sm:inline">Quick Dates:</span>
+              <span className="text-slate-400 text-[11px] mr-1 hidden sm:inline">Popular Dates:</span>
               {[
                 { label: 'All Dates', value: '' },
                 { label: '20 Oct', value: '2026-10-20' },
@@ -309,47 +376,119 @@ export const FlightSearch = () => {
                 className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-bold shadow-lg shadow-blue-600/30 transition-all"
               >
                 <Search className="w-3.5 h-3.5" />
-                Apply Filters
+                Search Flights
               </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Architecture & Redis Performance Bar */}
-      <RedisCacheBadge
-        cacheStatus={cacheStatus}
-        correlationId={correlationId}
-        responseTime={queryLatency}
-        totalResults={flights.length}
-      />
-
-      {/* Results Header: Sort Options */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            Available Flights
-            <span className="text-xs font-normal text-slate-400">
-              (Connecting via Port 3005)
-            </span>
-          </h2>
+      {/* Consumer Trust Badges */}
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+          <Zap className="w-4 h-4 text-amber-400 shrink-0" />
+          <div>
+            <span className="font-bold text-white block">Instant Confirmation</span>
+            <span className="text-[11px] text-slate-400">Zero wait booking guarantee</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" /> Sort by:
+        <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <div>
+            <span className="font-bold text-white block">Best Fare Assurance</span>
+            <span className="text-[11px] text-slate-400">No hidden booking markups</span>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+          <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
+          <div>
+            <span className="font-bold text-white block">Free Seat Selection</span>
+            <span className="text-[11px] text-slate-400">Standard seats at ₹0 extra</span>
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center gap-2.5">
+          <Clock className="w-4 h-4 text-purple-400 shrink-0" />
+          <div>
+            <span className="font-bold text-white block">24/7 Flight Alerts</span>
+            <span className="text-[11px] text-slate-400">SMS & email gate updates</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Advanced Filter Bar & Sorter */}
+      <section className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+        {/* Airlines filter */}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-slate-400 font-semibold flex items-center gap-1.5 mr-1">
+            <Filter className="w-3.5 h-3.5 text-blue-400" /> Airlines:
           </span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
-          >
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="time-asc">Earliest Departure</option>
-            <option value="seats-desc">Most Seats Available</option>
-          </select>
+          {[
+            { code: 'AI', name: 'Air India' },
+            { code: '6E', name: 'IndiGo' },
+            { code: 'SG', name: 'SpiceJet' },
+            { code: 'QP', name: 'Akasa Air' },
+            { code: 'UK', name: 'Vistara' },
+          ].map((airline) => {
+            const isSelected = selectedAirlines.includes(airline.code);
+            return (
+              <button
+                key={airline.code}
+                type="button"
+                onClick={() => toggleAirline(airline.code)}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+                  isSelected
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-slate-800/80 text-slate-400 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                {airline.name}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Departure Time Slots */}
+        <div className="flex items-center gap-2 text-xs">
+          <span className="text-slate-400 font-semibold hidden md:inline">Time:</span>
+          <select
+            value={selectedTimeSlot}
+            onChange={(e) => setSelectedTimeSlot(e.target.value)}
+            className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">Any Time</option>
+            <option value="morning">Morning (06:00 - 12:00)</option>
+            <option value="afternoon">Afternoon (12:00 - 18:00)</option>
+            <option value="evening">Evening (18:00 - 24:00)</option>
+          </select>
+
+          {/* Sorter */}
+          <div className="flex items-center gap-1.5 ml-2">
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-500" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none cursor-pointer font-semibold"
+            >
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="time-asc">Earliest Departure</option>
+              <option value="seats-desc">Most Seats Available</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* Flight Results Header */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+          Available Flight Routes
+          <span className="text-xs font-normal text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
+            {sortedFlights.length} {sortedFlights.length === 1 ? 'flight' : 'flights'} available
+          </span>
+        </h2>
       </div>
 
       {/* Error State */}
@@ -358,9 +497,6 @@ export const FlightSearch = () => {
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
           <div className="flex-1 text-sm">
             <p className="font-semibold">{error}</p>
-            <p className="text-xs text-red-300/80 mt-1">
-              Ensure API Gateway (:3005) and Flight Search (:3000) microservices are operational.
-            </p>
           </div>
           <button
             onClick={executeSearch}
@@ -404,9 +540,9 @@ export const FlightSearch = () => {
           <div className="w-16 h-16 rounded-2xl bg-slate-800/80 flex items-center justify-center mx-auto text-slate-400">
             <Plane className="w-8 h-8 opacity-40 rotate-45" />
           </div>
-          <h3 className="text-lg font-bold text-white">No Flights Match Your Criteria</h3>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
-            Try resetting your price range, choosing different departure dates, or searching for other airport destinations.
+          <h3 className="text-lg font-bold text-white">No Flights Found For This Itinerary</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
+            Try adjusting your travel date, resetting your price filter, or selecting different departure/arrival cities.
           </p>
           <button
             onClick={handleResetFilters}
@@ -433,14 +569,18 @@ export const FlightSearch = () => {
         />
       )}
 
-      {/* Booking Confirmation & Event Status Modal */}
+      {/* Digital Boarding Pass & Confirmation Modal */}
       {confirmedBooking && (
         <BookingConfirmationModal
           booking={confirmedBooking.booking}
           flight={confirmedBooking.flight}
+          airportsMap={airportsMap}
+          citiesMap={citiesMap}
           onClose={() => setConfirmedBooking(null)}
         />
       )}
     </div>
   );
 };
+
+export default FlightSearch;

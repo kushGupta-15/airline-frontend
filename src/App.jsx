@@ -20,6 +20,7 @@ function App() {
             <Route index element={<FlightSearch />} />
             <Route path="search" element={<FlightSearch />} />
             <Route path="overview" element={<HomePage />} />
+            <Route path="offers" element={<HomePage />} />
             <Route
               path="bookings"
               element={
@@ -39,6 +40,7 @@ function App() {
             <Route path="telemetry" element={<HealthDashboard />} />
             <Route path="health" element={<HealthDashboard />} />
             <Route path="auth" element={<AuthPage />} />
+            <Route path="login" element={<AuthPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

@@ -1,20 +1,46 @@
 import React from 'react';
-import { Plane, Calendar, Clock, Armchair, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Plane, Calendar, Clock, Armchair, ArrowRight, ShieldCheck, Luggage } from 'lucide-react';
 
 const AIRLINE_INFO = {
-  AI: { name: 'Air India', color: 'from-red-600 to-orange-600', badge: 'bg-red-500/10 text-red-400 border-red-500/20' },
-  '6E': { name: 'IndiGo', color: 'from-blue-600 to-indigo-600', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-  SG: { name: 'SpiceJet', color: 'from-amber-600 to-red-600', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  QP: { name: 'Akasa Air', color: 'from-orange-500 to-amber-500', badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
-  UK: { name: 'Vistara', color: 'from-purple-700 to-fuchsia-700', badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
+  AI: { 
+    name: 'Air India', 
+    color: 'from-red-600 to-rose-700', 
+    badge: 'bg-red-500/10 text-red-400 border-red-500/20',
+    logo: 'AI'
+  },
+  '6E': { 
+    name: 'IndiGo', 
+    color: 'from-blue-600 to-indigo-700', 
+    badge: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+    logo: '6E'
+  },
+  SG: { 
+    name: 'SpiceJet', 
+    color: 'from-amber-600 to-red-600', 
+    badge: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+    logo: 'SG'
+  },
+  QP: { 
+    name: 'Akasa Air', 
+    color: 'from-orange-500 to-amber-600', 
+    badge: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+    logo: 'QP'
+  },
+  UK: { 
+    name: 'Vistara', 
+    color: 'from-purple-800 to-fuchsia-800', 
+    badge: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+    logo: 'UK'
+  },
 };
 
 export const FlightCard = ({ flight, airportsMap = {}, citiesMap = {}, onSelect }) => {
   const prefix = flight.flightNumber ? flight.flightNumber.split('-')[0] : '';
   const airline = AIRLINE_INFO[prefix] || {
     name: 'SkyFlow Express',
-    color: 'from-slate-600 to-slate-700',
+    color: 'from-slate-700 to-slate-800',
     badge: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+    logo: 'SF',
   };
 
   const depAirport = airportsMap[flight.departureAirportId] || {};
@@ -34,7 +60,7 @@ export const FlightCard = ({ flight, airportsMap = {}, citiesMap = {}, onSelect 
 
   const formatDate = (date) => {
     if (!date || isNaN(date.getTime())) return '';
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
   // Duration in hours and minutes
@@ -60,15 +86,16 @@ export const FlightCard = ({ flight, airportsMap = {}, citiesMap = {}, onSelect 
 
   // Seat status
   const seats = flight.totalSeats || 0;
-  const isLowSeats = seats < 20;
+  const isUrgent = seats <= 15;
 
   return (
     <div className="group relative rounded-2xl bg-slate-900 border border-slate-800 hover:border-blue-500/40 p-5 sm:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-0.5">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        {/* Left: Airline & Flight Number Info */}
+        
+        {/* Left: Airline & Flight Info */}
         <div className="flex items-center gap-4 lg:w-1/4">
-          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${airline.color} flex items-center justify-center text-white font-bold text-lg shadow-lg shrink-0`}>
-            {prefix || 'SF'}
+          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${airline.color} flex items-center justify-center text-white font-black text-sm tracking-wider shadow-lg shrink-0`}>
+            {airline.logo}
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -77,26 +104,25 @@ export const FlightCard = ({ flight, airportsMap = {}, citiesMap = {}, onSelect 
                 {flight.flightNumber}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-              <span>Aircraft #{flight.airplaneId}</span>
-              {flight.boardingGate && (
-                <>
-                  <span>•</span>
-                  <span className="text-blue-400 font-medium">{flight.boardingGate}</span>
-                </>
-              )}
-            </p>
+            <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+              <span className="flex items-center gap-1">
+                <Luggage className="w-3 h-3 text-slate-500" />
+                7kg + 15kg
+              </span>
+              <span>•</span>
+              <span className="text-emerald-400 font-medium">Free Meal</span>
+            </div>
           </div>
         </div>
 
-        {/* Center: Flight Route & Schedule */}
+        {/* Center: Flight Schedule & Route */}
         <div className="flex-1 flex items-center justify-between sm:justify-center sm:gap-8 border-y sm:border-y-0 border-slate-800 py-3 sm:py-0">
           {/* Departure */}
           <div className="text-left sm:text-right">
             <div className="text-2xl font-black text-white font-mono">{formatTime(depDate)}</div>
             <div className="text-sm font-semibold text-blue-400">{depCode}</div>
             <div className="text-xs text-slate-300 font-medium">{depCity}</div>
-            <div className="text-[11px] text-slate-500 mt-0.5 hidden sm:block">{formatDate(depDate)}</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{formatDate(depDate)}</div>
           </div>
 
           {/* Flight Path Graphic */}
@@ -119,34 +145,38 @@ export const FlightCard = ({ flight, airportsMap = {}, citiesMap = {}, onSelect 
             <div className="text-2xl font-black text-white font-mono">{formatTime(arrDate)}</div>
             <div className="text-sm font-semibold text-blue-400">{arrCode}</div>
             <div className="text-xs text-slate-300 font-medium">{arrCity}</div>
-            <div className="text-[11px] text-slate-500 mt-0.5 hidden sm:block">{formatDate(arrDate)}</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{formatDate(arrDate)}</div>
           </div>
         </div>
 
-        {/* Right: Seat Availability, Price & Booking Button */}
+        {/* Right: Seat Availability, Price & Book Button */}
         <div className="flex sm:flex-row lg:flex-col items-center lg:items-end justify-between gap-4 lg:w-1/4">
           <div className="text-left lg:text-right">
-            <div className="text-xs text-slate-400">Total Price</div>
             <div className="text-2xl font-black text-white tracking-tight">
               ₹{Number(flight.price).toLocaleString('en-IN')}
             </div>
+            <div className="text-[10px] text-slate-400">per passenger</div>
+            
             <div className="flex items-center lg:justify-end gap-1.5 mt-1">
-              <Armchair className={`w-3.5 h-3.5 ${isLowSeats ? 'text-amber-400' : 'text-emerald-400'}`} />
-              <span className={`text-[11px] font-medium ${isLowSeats ? 'text-amber-400' : 'text-slate-300'}`}>
-                {isLowSeats ? `Only ${seats} seats left!` : `${seats} seats available`}
+              <Armchair className={`w-3.5 h-3.5 ${isUrgent ? 'text-amber-400' : 'text-emerald-400'}`} />
+              <span className={`text-[11px] font-medium ${isUrgent ? 'text-amber-400 font-bold' : 'text-slate-300'}`}>
+                {isUrgent ? `Only ${seats} seats left!` : `${seats} seats left`}
               </span>
             </div>
           </div>
 
           <button
             onClick={() => onSelect && onSelect(flight)}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-semibold text-sm shadow-lg shadow-blue-600/25 transition-all group-hover:scale-[1.02]"
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs shadow-lg shadow-blue-600/25 transition-all group-hover:scale-[1.02]"
           >
-            Select Flight
+            Book Flight
             <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
           </button>
         </div>
+
       </div>
     </div>
   );
 };
+
+export default FlightCard;
