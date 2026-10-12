@@ -46,19 +46,7 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
     }
   };
 
-  const handleInstantSignIn = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      await signin('pilot@skyflow.com', 'SkyFlow2026!');
-      setPassengerEmail('pilot@skyflow.com');
-      if (!passengerName) setPassengerName('Captain Passenger');
-    } catch (err) {
-      setError('Unable to authenticate demo passenger account.');
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   const handleSubmitBooking = async (e) => {
     e.preventDefault();
@@ -156,31 +144,20 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
           </div>
         </div>
 
-        {/* Sign In Required Notice with 1-Click Option */}
+        {/* Sign In Required Notice */}
         {!isAuthenticated && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-3">
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 font-semibold">
               <Lock className="w-4 h-4 shrink-0 text-amber-400" />
               <span>You must be signed in to confirm passenger reservations.</span>
             </div>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleInstantSignIn}
-                disabled={loading}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                1-Click Passenger Demo Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/auth')}
-                className="text-xs text-amber-400 underline font-medium hover:text-amber-300"
-              >
-                Or Sign In to Your Account
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate('/auth')}
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md transition-all shrink-0"
+            >
+              Sign In to Book
+            </button>
           </div>
         )}
 

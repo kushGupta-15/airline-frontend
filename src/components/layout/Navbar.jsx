@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Plane, Compass, Ticket, Tag, User, LogOut, LogIn, Menu, X, ShieldCheck } from 'lucide-react';
+import { Plane, Compass, Ticket, Tag, User, LogOut, LogIn, Menu, X, ShieldCheck, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Navbar = () => {
-  const { isAuthenticated, userEmail, logout } = useAuth();
+  const { isAuthenticated, isAdmin, userEmail, logout } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -18,6 +18,7 @@ export const Navbar = () => {
     <header className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
+          
           {/* Logo & Airline Brand */}
           <Link to="/" className="flex items-center gap-3.5 group">
             <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25 group-hover:scale-105 transition-all">
@@ -51,20 +52,44 @@ export const Navbar = () => {
                 </Link>
               );
             })}
+
+            {/* Admin Portal Tab (shown when user is Admin) */}
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                  location.pathname === '/admin'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-purple-300 bg-purple-500/10 border border-purple-500/25 hover:bg-purple-500/20'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                Flight Ops (Admin)
+              </Link>
+            )}
           </nav>
 
           {/* Right Header Controls / Account */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center gap-3">
             {isAuthenticated ? (
               <div className="flex items-center gap-3">
                 <Link
                   to="/bookings"
                   className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800/80 border border-slate-700/80 hover:border-slate-600 text-xs text-slate-200 transition-colors shadow-sm"
                 >
-                  <div className="w-6 h-6 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center font-bold text-xs">
-                    {userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                    isAdmin ? 'bg-purple-600/30 text-purple-300' : 'bg-blue-600/20 text-blue-400'
+                  }`}>
+                    {isAdmin ? 'A' : userEmail ? userEmail.charAt(0).toUpperCase() : 'U'}
                   </div>
-                  <span className="max-w-[130px] truncate font-medium">{userEmail || 'My Account'}</span>
+                  <span className="max-w-[140px] truncate font-medium">
+                    {userEmail || 'My Account'}
+                  </span>
+                  {isAdmin && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 bg-purple-500/20 px-1.5 py-0.2 rounded border border-purple-500/30">
+                      ADMIN
+                    </span>
+                  )}
                 </Link>
                 <button
                   onClick={logout}
@@ -115,6 +140,18 @@ export const Navbar = () => {
                 </Link>
               );
             })}
+
+            {isAdmin && (
+              <Link
+                to="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-purple-300 bg-purple-500/10 border border-purple-500/30"
+              >
+                <ShieldCheck className="w-4 h-4 text-purple-400" />
+                Flight Ops (Admin)
+              </Link>
+            )}
+
             <div className="pt-2 border-t border-slate-800">
               {isAuthenticated ? (
                 <button
@@ -124,7 +161,7 @@ export const Navbar = () => {
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-400 bg-rose-500/10"
                 >
-                  <LogOut className="w-4 h-4" /> Sign Out
+                  <LogOut className="w-4 h-4" /> Sign Out ({userEmail})
                 </button>
               ) : (
                 <Link
@@ -142,3 +179,5 @@ export const Navbar = () => {
     </header>
   );
 };
+
+export default Navbar;

@@ -3,10 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 import { FlightSearch } from './pages/FlightSearch';
 import { HomePage } from './pages/HomePage';
 import { BookingsPage } from './pages/BookingsPage';
 import { MyBookings } from './pages/MyBookings';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { HealthDashboard } from './pages/HealthDashboard';
 import { TelemetryPage } from './pages/TelemetryPage';
 import { AuthPage } from './pages/AuthPage';
@@ -35,6 +37,14 @@ function App() {
                 <ProtectedRoute>
                   <MyBookings />
                 </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <AdminRoute>
+                  <AdminDashboard />
+                </AdminRoute>
               }
             />
             <Route path="telemetry" element={<HealthDashboard />} />

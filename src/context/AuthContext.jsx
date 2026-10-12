@@ -10,6 +10,9 @@ export const AuthProvider = ({ children }) => {
     const id = localStorage.getItem('airline_user_id');
     return email ? { email, id: id ? parseInt(id, 10) : null } : null;
   });
+  const [isAdmin, setIsAdmin] = useState(() => {
+    return localStorage.getItem('airline_email') === 'kushg1517@gmail.com';
+  });
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(token));
   const [loading, setLoading] = useState(true);
 
@@ -20,9 +23,10 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    setIsAdmin(false);
   }, []);
 
-  const login = useCallback((jwtToken, email, userId = null) => {
+  const login = useCallback(async (jwtToken, email, userId = null) => {
     localStorage.setItem('airline_token', jwtToken);
     if (email) localStorage.setItem('airline_email', email);
     if (userId) localStorage.setItem('airline_user_id', String(userId));
@@ -30,6 +34,19 @@ export const AuthProvider = ({ children }) => {
     setToken(jwtToken);
     setUser({ email, id: userId });
     setIsAuthenticated(true);
+
+    if (email === 'kushg1517@gmail.com') {
+      setIsAdmin(true);
+    } else if (userId) {
+      try {
+        const adminRes = await authApi.isAdmin(userId);
+        setIsAdmin(Boolean(adminRes.data?.data));
+      } catch {
+        setIsAdmin(false);
+      }
+    } else {
+      setIsAdmin(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -43,7 +60,7 @@ export const AuthProvider = ({ children }) => {
             if (res.data?.success) {
               const verifiedUserId = res.data.data;
               const storedEmail = localStorage.getItem('airline_email') || 'passenger@airline.com';
-              login(storedToken, storedEmail, verifiedUserId);
+              await login(storedToken, storedEmail, verifiedUserId);
             } else {
               logout();
             }
@@ -81,7 +98,7 @@ export const AuthProvider = ({ children }) => {
       } catch {
         // Fallback
       }
-      login(jwtToken, email, userId);
+      await login(jwtToken, email, userId);
       return res.data;
     }
     throw new Error(res.data?.message || 'Sign in failed');
@@ -104,6 +121,7 @@ export const AuthProvider = ({ children }) => {
         userEmail: user?.email || null,
         userId: user?.id || null,
         isAuthenticated,
+        isAdmin,
         loading,
         login,
         logout,

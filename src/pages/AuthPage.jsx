@@ -53,30 +53,22 @@ export const AuthPage = () => {
         setSuccessMsg('Account registered successfully! Signing in...');
         await signin(email, password);
         setTimeout(() => {
-          navigate(redirectPath, { replace: true });
+          if (email === 'kushg1517@gmail.com') {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate(redirectPath, { replace: true });
+          }
         }, 800);
       } else {
         await signin(email, password);
-        navigate(redirectPath, { replace: true });
+        if (email === 'kushg1517@gmail.com') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate(redirectPath, { replace: true });
+        }
       }
     } catch (err) {
       setError(err.formattedMessage || err.message || 'Authentication failed. Please verify your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Instant 1-Click Demo Login
-  const handleInstantDemoLogin = async () => {
-    setEmail('pilot@skyflow.com');
-    setPassword('SkyFlow2026!');
-    setError(null);
-    setLoading(true);
-    try {
-      await signin('pilot@skyflow.com', 'SkyFlow2026!');
-      navigate(redirectPath, { replace: true });
-    } catch (err) {
-      setError('Demo login failed. Please ensure services are running.');
     } finally {
       setLoading(false);
     }
@@ -185,30 +177,6 @@ export const AuthPage = () => {
               {isSignUp ? 'New Member' : 'Existing Member'}
             </span>
           </div>
-
-          {/* 1-Click Demo Login Button */}
-          {!isSignUp && (
-            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/60 to-indigo-950/60 border border-blue-500/30 flex items-center justify-between gap-3 shadow-md">
-              <div className="space-y-0.5">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  Instant Passenger Access
-                </span>
-                <p className="text-[11px] text-slate-400">
-                  Try the reservation portal instantly as <span className="text-blue-300 font-mono">pilot@skyflow.com</span>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleInstantDemoLogin}
-                disabled={loading}
-                className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-bold text-xs transition-all shadow-md shrink-0 flex items-center gap-1.5"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                1-Click Sign In
-              </button>
-            </div>
-          )}
 
           {/* Error & Success Alerts */}
           {error && (

@@ -139,18 +139,21 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Unified microservice API wrappers communicating through API Gateway
 export const authApi = {
   signup: (payload) => apiClient.post('/authservice/api/v1/signup', payload),
   signin: (payload) => apiClient.post('/authservice/api/v1/signin', payload),
   isAuthenticated: () => apiClient.get('/authservice/api/v1/isauthenticated'),
+  isAdmin: (id) => apiClient.get('/authservice/api/v1/isAdmin', { params: { id } }),
 };
 
 export const flightApi = {
   getFlights: (params) => apiClient.get('/flightservice/api/v1/flights', { params }),
   getFlightById: (id) => apiClient.get(`/flightservice/api/v1/flights/${id}`),
+  createFlight: (payload) => apiClient.post('/flightservice/api/v1/flights', payload),
   getCities: () => apiClient.get('/flightservice/api/v1/city'),
+  createCity: (payload) => apiClient.post('/flightservice/api/v1/city', payload),
   getAirports: () => apiClient.get('/flightservice/api/v1/airports'),
+  createAirport: (payload) => apiClient.post('/flightservice/api/v1/airports', payload),
 };
 
 export const bookingApi = {
