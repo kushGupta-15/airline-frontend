@@ -7,11 +7,13 @@ import {
   ShieldAlert, Loader2, X, AlertOctagon, Undo2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { bookingApi, flightApi } from '../api/client';
 import { BookingConfirmationModal } from '../components/booking/BookingConfirmationModal';
 
 export const MyBookings = () => {
   const { isAuthenticated, userEmail } = useAuth();
+  const toast = useToast();
 
   const [bookings, setBookings] = useState([]);
   const [flightsMap, setFlightsMap] = useState({});
@@ -96,6 +98,7 @@ export const MyBookings = () => {
           type: 'success',
           message: `Booking SKF-${cancellingBooking.booking.id.toString().padStart(5, '0')} successfully cancelled. Net refund of ₹${refundAmt.toLocaleString('en-IN')} initiated, and ${restored} seat(s) restored to public flight inventory.`
         });
+        toast.success(`Booking SKF-${cancellingBooking.booking.id.toString().padStart(5, '0')} cancelled! ₹${refundAmt.toLocaleString('en-IN')} refund initiated.`);
         setCancellingBooking(null);
         await fetchData(true);
       } else {

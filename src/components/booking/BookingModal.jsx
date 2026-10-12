@@ -7,11 +7,13 @@ import {
   Luggage, Shield, Percent, Gift
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { bookingApi } from '../../api/client';
 import { SeatMapModal } from './SeatMapModal';
 
 export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose, onBookingSuccess }) => {
   const { isAuthenticated, userEmail } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
 
   const [noOfSeats, setNoOfSeats] = useState(1);
@@ -221,6 +223,8 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
         } catch (storageErr) {
           console.warn('[BookingModal] LocalStorage caching omitted:', storageErr);
         }
+
+        toast.success(`Booking confirmed for ${finalizedPassengers.length} passenger(s)! Boarding pass ready.`);
 
         onBookingSuccess(bookingResult, {
           ...flight,
@@ -640,12 +644,15 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
                   if (!code) return;
                   if (code === 'SKYFLOW10') {
                     setAppliedPromo({ code: 'SKYFLOW10', description: '10% instant discount on total airfare' });
+                    toast.success('Promo voucher SKYFLOW10 applied (10% off airfare)!');
                     setPromoCodeInput('');
                   } else if (code === 'FLYFIRST') {
                     setAppliedPromo({ code: 'FLYFIRST', description: 'Flat ₹500 off promotional savings' });
+                    toast.success('Promo voucher FLYFIRST applied (₹500 flat discount)!');
                     setPromoCodeInput('');
                   } else if (code === 'SUMMER2026') {
                     setAppliedPromo({ code: 'SUMMER2026', description: '15% Seasonal Summer promo savings' });
+                    toast.success('Promo voucher SUMMER2026 applied (15% off airfare)!');
                     setPromoCodeInput('');
                   } else {
                     setPromoError('Invalid coupon code. Try SKYFLOW10, FLYFIRST, or SUMMER2026.');
@@ -672,10 +679,13 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
                     setPromoError(null);
                     if (p.code === 'SKYFLOW10') {
                       setAppliedPromo({ code: 'SKYFLOW10', description: '10% instant discount on total airfare' });
+                      toast.success('Promo voucher SKYFLOW10 applied (10% off)!');
                     } else if (p.code === 'FLYFIRST') {
                       setAppliedPromo({ code: 'FLYFIRST', description: 'Flat ₹500 off promotional savings' });
+                      toast.success('Promo voucher FLYFIRST applied (₹500 flat off)!');
                     } else if (p.code === 'SUMMER2026') {
                       setAppliedPromo({ code: 'SUMMER2026', description: '15% Seasonal Summer promo savings' });
+                      toast.success('Promo voucher SUMMER2026 applied (15% off)!');
                     }
                   }}
                   className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all ${

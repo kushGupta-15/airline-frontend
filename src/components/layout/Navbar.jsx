@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Plane, Compass, Ticket, Tag, User, LogOut, LogIn, Menu, X, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Plane, Compass, Ticket, Tag, User, LogOut, LogIn, Menu, X, ShieldCheck, ShieldAlert, Radio } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Navbar = () => {
@@ -10,6 +10,7 @@ export const Navbar = () => {
 
   const navLinks = [
     { name: 'Book Flights', path: '/', icon: Compass },
+    { name: 'Flight Status', path: '/flight-status', icon: Radio },
     { name: 'My Trips', path: '/bookings', icon: Ticket },
     { name: 'Special Offers', path: '/offers', icon: Tag },
   ];
