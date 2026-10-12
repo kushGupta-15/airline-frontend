@@ -47,6 +47,17 @@ apiClient.interceptors.response.use(
     if (traceId) {
       response.correlationId = traceId;
     }
+
+    // Track Redis cache performance status header
+    const cacheHeader = response.headers['x-cache'] || response.headers['X-Cache'];
+    if (cacheHeader) {
+      response.cacheStatus = cacheHeader.toUpperCase();
+    } else if (response.data?.message?.toLowerCase().includes('cached')) {
+      response.cacheStatus = 'HIT';
+    } else {
+      response.cacheStatus = 'MISS';
+    }
+
     return response;
   },
   (error) => {
@@ -89,6 +100,7 @@ export const flightApi = {
   getFlights: (params) => apiClient.get('/flightservice/api/v1/flights', { params }),
   getFlightById: (id) => apiClient.get(`/flightservice/api/v1/flights/${id}`),
   getCities: () => apiClient.get('/flightservice/api/v1/city'),
+  getAirports: () => apiClient.get('/flightservice/api/v1/airports'),
 };
 
 export const bookingApi = {

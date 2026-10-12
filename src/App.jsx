@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AppLayout } from './components/layout/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { FlightSearch } from './pages/FlightSearch';
 import { HomePage } from './pages/HomePage';
 import { BookingsPage } from './pages/BookingsPage';
 import { TelemetryPage } from './pages/TelemetryPage';
@@ -14,7 +15,9 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<AppLayout />}>
-            <Route index element={<HomePage />} />
+            <Route index element={<FlightSearch />} />
+            <Route path="search" element={<FlightSearch />} />
+            <Route path="overview" element={<HomePage />} />
             <Route
               path="bookings"
               element={
