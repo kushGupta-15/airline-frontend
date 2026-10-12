@@ -148,7 +148,7 @@ export const HomePage = () => {
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-sm font-bold text-white">INR {flight.price}</span>
                   <Link
-                    to="/auth"
+                    to="/search"
                     className="text-xs font-medium text-blue-400 hover:text-blue-300 flex items-center gap-1"
                   >
                     Book Now <ArrowRight className="w-3 h-3" />

@@ -6,6 +6,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { FlightSearch } from './pages/FlightSearch';
 import { HomePage } from './pages/HomePage';
 import { BookingsPage } from './pages/BookingsPage';
+import { MyBookings } from './pages/MyBookings';
 import { TelemetryPage } from './pages/TelemetryPage';
 import { AuthPage } from './pages/AuthPage';
 
@@ -23,6 +24,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BookingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="my-bookings"
+              element={
+                <ProtectedRoute>
+                  <MyBookings />
                 </ProtectedRoute>
               }
             />

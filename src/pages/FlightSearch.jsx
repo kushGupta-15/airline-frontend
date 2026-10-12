@@ -7,6 +7,8 @@ import {
 import { flightApi } from '../api/client';
 import { FlightCard } from '../components/flights/FlightCard';
 import { RedisCacheBadge } from '../components/flights/RedisCacheBadge';
+import { BookingModal } from '../components/booking/BookingModal';
+import { BookingConfirmationModal } from '../components/booking/BookingConfirmationModal';
 
 export const FlightSearch = () => {
   // Master options from Gateway
@@ -31,6 +33,7 @@ export const FlightSearch = () => {
   const [correlationId, setCorrelationId] = useState('');
   const [queryLatency, setQueryLatency] = useState(null);
   const [selectedFlightForBooking, setSelectedFlightForBooking] = useState(null);
+  const [confirmedBooking, setConfirmedBooking] = useState(null);
 
   // 1. Fetch cities and airports on mount
   useEffect(() => {
@@ -416,70 +419,28 @@ export const FlightSearch = () => {
         </div>
       )}
 
-      {/* Booking Selection Modal (Bridge to Phase 4) */}
+      {/* Interactive Booking & Checkout Modal */}
       {selectedFlightForBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl space-y-6">
-            <button
-              onClick={() => setSelectedFlightForBooking(null)}
-              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <BookingModal
+          flight={selectedFlightForBooking}
+          airportsMap={airportsMap}
+          citiesMap={citiesMap}
+          onClose={() => setSelectedFlightForBooking(null)}
+          onBookingSuccess={(bookingData, flightData) => {
+            setSelectedFlightForBooking(null);
+            setConfirmedBooking({ booking: bookingData, flight: flightData });
+            executeSearch(); // Refresh live flight seat inventory
+          }}
+        />
+      )}
 
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">Flight Selected</h3>
-                <p className="text-xs text-slate-400">
-                  Ready to proceed with reservation via Booking Service
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-2xl bg-slate-800/50 border border-slate-700/50 p-4 space-y-2 text-sm">
-              <div className="flex justify-between text-slate-300">
-                <span>Flight Number:</span>
-                <span className="font-mono font-bold text-blue-400">{selectedFlightForBooking.flightNumber}</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Fare per Passenger:</span>
-                <span className="font-bold text-white">₹{Number(selectedFlightForBooking.price).toLocaleString('en-IN')}</span>
-              </div>
-              <div className="flex justify-between text-slate-300">
-                <span>Remaining Seats:</span>
-                <span className="text-emerald-400 font-semibold">{selectedFlightForBooking.totalSeats} seats</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
-              <span>
-                Booking Service and Payment Gateway integration will finalize your transaction in Phase 4.
-              </span>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setSelectedFlightForBooking(null)}
-                className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-semibold transition-colors"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  alert(`Flight ${selectedFlightForBooking.flightNumber} selected. Booking integration is available in Phase 4.`);
-                  setSelectedFlightForBooking(null);
-                }}
-                className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg shadow-blue-600/30 transition-all"
-              >
-                Continue to Booking
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Booking Confirmation & Event Status Modal */}
+      {confirmedBooking && (
+        <BookingConfirmationModal
+          booking={confirmedBooking.booking}
+          flight={confirmedBooking.flight}
+          onClose={() => setConfirmedBooking(null)}
+        />
       )}
     </div>
   );
