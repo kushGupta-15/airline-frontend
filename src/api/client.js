@@ -160,6 +160,7 @@ export const bookingApi = {
   createBooking: (payload) => apiClient.post('/bookingservice/api/v1/bookings', payload),
   getUserBookings: () => apiClient.get('/bookingservice/api/v1/bookings'),
   getBookingById: (id) => apiClient.get(`/bookingservice/api/v1/bookings/${id}`),
+  cancelBooking: (id) => apiClient.patch(`/bookingservice/api/v1/bookings/${id}/cancel`),
 };
 
 export const systemApi = {

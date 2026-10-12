@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { 
   Ticket, Plane, Armchair, 
   Clock3, XCircle, ArrowRight, RefreshCw, 
-  AlertTriangle, CheckCircle2, Sparkles, Printer, Luggage
+  AlertTriangle, CheckCircle2, Sparkles, Printer, Luggage,
+  ShieldAlert, Loader2, X, AlertOctagon, Undo2
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { bookingApi, flightApi } from '../api/client';
@@ -22,6 +23,10 @@ export const MyBookings = () => {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('ALL'); // ALL | Booked | InProcess | Cancelled
   const [activeBoardingPass, setActiveBoardingPass] = useState(null);
+  const [cancellingBooking, setCancellingBooking] = useState(null);
+  const [cancelReason, setCancelReason] = useState('Change of personal travel schedule');
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelNotification, setCancelNotification] = useState(null);
 
   // Fetch all bookings and flight/airport metadata
   const fetchData = useCallback(async (isRefresh = false) => {
@@ -75,6 +80,34 @@ export const MyBookings = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const handleCancelConfirm = async () => {
+    if (!cancellingBooking) return;
+    setIsCancelling(true);
+    setError(null);
+
+    try {
+      const res = await bookingApi.cancelBooking(cancellingBooking.booking.id);
+      if (res.data?.success) {
+        const refundAmt = res.data.data?.refundAmount || Math.round(cancellingBooking.booking.totalCost * 0.9);
+        const restored = res.data.data?.restoredSeats || cancellingBooking.booking.noOfSeats;
+        
+        setCancelNotification({
+          type: 'success',
+          message: `Booking SKF-${cancellingBooking.booking.id.toString().padStart(5, '0')} successfully cancelled. Net refund of ₹${refundAmt.toLocaleString('en-IN')} initiated, and ${restored} seat(s) restored to public flight inventory.`
+        });
+        setCancellingBooking(null);
+        await fetchData(true);
+      } else {
+        setError(res.data?.message || 'Failed to cancel reservation. Please retry.');
+      }
+    } catch (err) {
+      console.error('[MyBookings] Cancellation failed:', err);
+      setError(err.response?.data?.message || err.message || 'Unable to cancel booking.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   // Filter bookings by status
   const filteredBookings = bookings.filter((b) => {
@@ -201,6 +234,23 @@ export const MyBookings = () => {
               Member: <strong className="text-white font-medium">{userEmail}</strong>
             </span>
           </div>
+
+          {/* Cancellation Success Banner */}
+          {cancelNotification && (
+            <div className="p-4 rounded-2xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 flex items-center justify-between gap-3 text-xs animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>{cancelNotification.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCancelNotification(null)}
+                className="p-1 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* Error Banner */}
           {error && (
@@ -356,14 +406,45 @@ export const MyBookings = () => {
                       </div>
                     </div>
 
-                    {/* Bottom Row: Boarding Pass Action Bar */}
+                    {/* Bottom Row: Boarding Pass & Cancellation Action Bar */}
                     <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
                       <div className="inline-flex items-center gap-2 text-slate-400">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>Confirmed Booking • Automated SMS Reminders Active</span>
+                        {booking.status === 'Cancelled' ? (
+                          <>
+                            <XCircle className="w-3.5 h-3.5 text-rose-400" />
+                            <span className="text-rose-300 font-medium">Reservation Cancelled • 90% Refund Initiated to Original Source</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>Confirmed Booking • Automated SMS Reminders Active</span>
+                          </>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {booking.status === 'Booked' && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCancellingBooking({
+                                booking,
+                                flight,
+                                cachedManifest,
+                                depCity,
+                                arrCity,
+                                depCode,
+                                arrCode,
+                                pnr
+                              });
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:text-rose-300 font-semibold text-xs transition-all"
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Cancel Reservation
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => {
@@ -375,10 +456,15 @@ export const MyBookings = () => {
                               }
                             });
                           }}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition-all hover:scale-105"
+                          disabled={booking.status === 'Cancelled'}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md transition-all ${
+                            booking.status === 'Cancelled'
+                              ? 'bg-slate-800 text-slate-500 border border-slate-700/50 cursor-not-allowed opacity-60'
+                              : 'bg-blue-600 hover:bg-blue-500 text-white hover:scale-105'
+                          }`}
                         >
                           <Printer className="w-3.5 h-3.5" />
-                          View Boarding Pass
+                          {booking.status === 'Cancelled' ? 'Trip Cancelled' : 'View Boarding Pass'}
                         </button>
                       </div>
                     </div>
@@ -424,6 +510,121 @@ export const MyBookings = () => {
           citiesMap={citiesMap}
           onClose={() => setActiveBoardingPass(null)}
         />
+      )}
+
+      {/* Self-Service Cancellation & Saga Restock Modal */}
+      {cancellingBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-7 shadow-2xl space-y-6">
+            
+            <button
+              onClick={() => setCancellingBooking(null)}
+              className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center">
+                <AlertOctagon className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-white tracking-tight">
+                  Cancel Flight Reservation
+                </h3>
+                <p className="text-xs text-slate-400 font-mono">
+                  PNR: {cancellingBooking.pnr} • {cancellingBooking.flight?.flightNumber || 'Flight'}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-800 space-y-3 text-xs">
+              <div className="flex justify-between text-slate-300">
+                <span className="text-slate-400">Route & Schedule:</span>
+                <span className="font-semibold text-white">
+                  {cancellingBooking.depCity} ({cancellingBooking.depCode}) ➔ {cancellingBooking.arrCity} ({cancellingBooking.arrCode})
+                </span>
+              </div>
+              <div className="flex justify-between text-slate-300">
+                <span className="text-slate-400">Seats Reserved:</span>
+                <span className="font-semibold text-white">
+                  {cancellingBooking.booking.noOfSeats} passenger(s)
+                </span>
+              </div>
+              <div className="border-t border-slate-700 pt-2 space-y-1.5">
+                <div className="flex justify-between text-slate-400">
+                  <span>Original Total Fare:</span>
+                  <span className="font-mono text-slate-200">₹{Number(cancellingBooking.booking.totalCost).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Aviation Processing Fee (10%):</span>
+                  <span className="font-mono text-rose-400">-₹{Math.round(cancellingBooking.booking.totalCost * 0.1).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="border-t border-slate-700/60 pt-1.5 flex justify-between font-bold text-sm text-white">
+                  <span>Net Refund Amount (90%):</span>
+                  <span className="text-emerald-400 text-base font-black">
+                    ₹{Math.round(cancellingBooking.booking.totalCost * 0.9).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 text-xs">
+              <label className="text-slate-300 font-semibold block">Reason for Cancellation</label>
+              <select
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-rose-500 cursor-pointer"
+              >
+                <option value="Change of personal travel schedule">Change of personal travel schedule</option>
+                <option value="Found alternative transportation">Found alternative transportation</option>
+                <option value="Medical or emergency circumstances">Medical or emergency circumstances</option>
+                <option value="Flight schedule clash">Flight schedule clash</option>
+                <option value="Other personal reasons">Other personal reasons</option>
+              </select>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <ShieldAlert className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>Inventory Restoration Notice</span>
+              </div>
+              <p className="text-amber-300/80">
+                Confirming cancellation will release all {cancellingBooking.booking.noOfSeats} seat(s) back into live flight inventory via Saga compensation. The net refund will be credited to your original payment account within 2-4 business days.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={() => setCancellingBooking(null)}
+                className="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs transition-colors"
+              >
+                Keep Reservation
+              </button>
+              <button
+                type="button"
+                disabled={isCancelling}
+                onClick={handleCancelConfirm}
+                className="flex-1 py-3 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 transition-all"
+              >
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing Restock...
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    Confirm Cancellation
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>
