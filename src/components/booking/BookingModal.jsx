@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   X, Armchair, Plus, Minus, ShieldCheck, 
   AlertCircle, Sparkles, Loader2, User, Mail, Phone,
-  CreditCard, CheckCircle2, Lock, UtensilsCrossed, Users, Tag
+  CreditCard, CheckCircle2, Lock, UtensilsCrossed, Users, Tag,
+  Luggage, Shield, Percent, Gift
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { bookingApi } from '../../api/client';
@@ -35,12 +36,46 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Ancillary Add-ons state
+  const [baggageTier, setBaggageTier] = useState('cabin'); // cabin | checkin15 | heavy25
+  const [travelInsurance, setTravelInsurance] = useState(false); // 299 per passenger
+  const [priorityPass, setPriorityPass] = useState(false); // 350 per passenger
+
+  // Promo Code Engine state
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState(null);
+
   if (!flight) return null;
 
   const maxSeats = Math.min(flight.totalSeats || 1, 9);
   const basePrice = Number(flight.price) || 0;
-  const taxesAndFees = Math.round(basePrice * 0.12 * noOfSeats);
-  const totalPayable = (basePrice * noOfSeats) + taxesAndFees;
+  const subtotalAirfare = basePrice * noOfSeats;
+  const taxesAndFees = Math.round(subtotalAirfare * 0.12);
+
+  const baggageCosts = {
+    cabin: 0,
+    checkin15: 850,
+    heavy25: 1450
+  };
+  const baggageTotal = (baggageCosts[baggageTier] || 0) * noOfSeats;
+  const insuranceTotal = travelInsurance ? 299 * noOfSeats : 0;
+  const priorityTotal = priorityPass ? 350 * noOfSeats : 0;
+  const ancillariesTotal = baggageTotal + insuranceTotal + priorityTotal;
+
+  // Discount computation
+  let discountAmount = 0;
+  if (appliedPromo) {
+    if (appliedPromo.code === 'SKYFLOW10') {
+      discountAmount = Math.round(subtotalAirfare * 0.10);
+    } else if (appliedPromo.code === 'FLYFIRST') {
+      discountAmount = Math.min(500, subtotalAirfare);
+    } else if (appliedPromo.code === 'SUMMER2026') {
+      discountAmount = Math.round(subtotalAirfare * 0.15);
+    }
+  }
+
+  const totalPayable = Math.max(0, subtotalAirfare + taxesAndFees + ancillariesTotal - discountAmount);
 
   const depAirport = airportsMap[flight.departureAirportId] || {};
   const arrAirport = airportsMap[flight.arrivalAirportId] || {};
@@ -447,6 +482,92 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
             </div>
           </div>
 
+          {/* Ancillary Baggage & Travel Protection Options */}
+          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Luggage className="w-3.5 h-3.5 text-blue-400" />
+                Baggage Allowance & Travel Protection
+              </h4>
+              <span className="text-[11px] text-emerald-400 font-semibold">
+                Flexible Add-Ons
+              </span>
+            </div>
+
+            {/* Baggage Selection Grid */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] text-slate-300 font-medium">Baggage Options (Per Passenger):</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'cabin', title: 'Cabin Only (7kg)', fee: 'Included (Free)' },
+                  { id: 'checkin15', title: 'Check-in (15kg)', fee: '+₹850/seat' },
+                  { id: 'heavy25', title: 'Heavy Load (25kg)', fee: '+₹1,450/seat' },
+                ].map((tier) => (
+                  <button
+                    key={tier.id}
+                    type="button"
+                    onClick={() => setBaggageTier(tier.id)}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      baggageTier === tier.id
+                        ? 'bg-blue-600/20 border-blue-500 text-white shadow-md'
+                        : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="font-semibold text-xs">{tier.title}</div>
+                    <div className="text-[10px] text-blue-400 mt-0.5">{tier.fee}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Protection Add-ons (Checkboxes) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <label className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                travelInsurance 
+                  ? 'bg-blue-600/15 border-blue-500 text-white' 
+                  : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-white'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={travelInsurance}
+                  onChange={(e) => setTravelInsurance(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-blue-600 focus:ring-0 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-semibold text-white flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-emerald-400" />
+                    SkyAssure Travel Insurance
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Medical & trip delay protection (+₹299/seat)
+                  </p>
+                </div>
+              </label>
+
+              <label className={`p-3 rounded-xl border flex items-start gap-3 cursor-pointer transition-all ${
+                priorityPass 
+                  ? 'bg-blue-600/15 border-blue-500 text-white' 
+                  : 'bg-slate-900 border-slate-700/80 text-slate-400 hover:text-white'
+              }`}>
+                <input
+                  type="checkbox"
+                  checked={priorityPass}
+                  onChange={(e) => setPriorityPass(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-blue-600 focus:ring-0 cursor-pointer"
+                />
+                <div className="space-y-0.5">
+                  <div className="text-xs font-semibold text-white flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-amber-400" />
+                    Priority Check-in & Fast Baggage
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Dedicated desk & priority baggage drop (+₹350/seat)
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* Contact Coordinates (Primary Delivery) */}
           <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
@@ -487,6 +608,110 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
             </p>
           </div>
 
+          {/* Promo Discount Engine */}
+          <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Percent className="w-3.5 h-3.5 text-blue-400" />
+                Promo Code & Airline Vouchers
+              </h4>
+              <span className="text-[10px] text-slate-500">Tap below to auto-apply</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Enter code (e.g. SKYFLOW10)"
+                  value={promoCodeInput}
+                  onChange={(e) => {
+                    setPromoCodeInput(e.target.value.toUpperCase());
+                    setPromoError(null);
+                  }}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-white uppercase placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setPromoError(null);
+                  const code = promoCodeInput.trim().toUpperCase();
+                  if (!code) return;
+                  if (code === 'SKYFLOW10') {
+                    setAppliedPromo({ code: 'SKYFLOW10', description: '10% instant discount on total airfare' });
+                    setPromoCodeInput('');
+                  } else if (code === 'FLYFIRST') {
+                    setAppliedPromo({ code: 'FLYFIRST', description: 'Flat ₹500 off promotional savings' });
+                    setPromoCodeInput('');
+                  } else if (code === 'SUMMER2026') {
+                    setAppliedPromo({ code: 'SUMMER2026', description: '15% Seasonal Summer promo savings' });
+                    setPromoCodeInput('');
+                  } else {
+                    setPromoError('Invalid coupon code. Try SKYFLOW10, FLYFIRST, or SUMMER2026.');
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors shadow-md"
+              >
+                Apply
+              </button>
+            </div>
+
+            {/* Quick Promo Pills */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { code: 'SKYFLOW10', desc: '10% Off' },
+                { code: 'FLYFIRST', desc: 'Flat ₹500 Off' },
+                { code: 'SUMMER2026', desc: '15% Off' }
+              ].map((p) => (
+                <button
+                  key={p.code}
+                  type="button"
+                  onClick={() => {
+                    setPromoCodeInput(p.code);
+                    setPromoError(null);
+                    if (p.code === 'SKYFLOW10') {
+                      setAppliedPromo({ code: 'SKYFLOW10', description: '10% instant discount on total airfare' });
+                    } else if (p.code === 'FLYFIRST') {
+                      setAppliedPromo({ code: 'FLYFIRST', description: 'Flat ₹500 off promotional savings' });
+                    } else if (p.code === 'SUMMER2026') {
+                      setAppliedPromo({ code: 'SUMMER2026', description: '15% Seasonal Summer promo savings' });
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg font-mono text-[11px] font-bold border transition-all ${
+                    appliedPromo?.code === p.code
+                      ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-500'
+                  }`}
+                >
+                  {p.code} ({p.desc})
+                </button>
+              ))}
+            </div>
+
+            {/* Applied Promo Success or Error Alert */}
+            {appliedPromo && (
+              <div className="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="font-semibold">{appliedPromo.code} applied! {appliedPromo.description}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAppliedPromo(null)}
+                  className="text-[10px] text-slate-400 hover:text-white underline ml-2"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {promoError && (
+              <div className="text-[11px] text-red-400 font-medium">
+                {promoError}
+              </div>
+            )}
+          </div>
+
           {/* Payment Method Selector */}
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
@@ -518,12 +743,24 @@ export const BookingModal = ({ flight, airportsMap = {}, citiesMap = {}, onClose
           <div className="rounded-2xl bg-slate-800/40 border border-slate-700/50 p-4 space-y-2 text-xs">
             <div className="flex justify-between text-slate-400">
               <span>Base Airfare (₹{basePrice.toLocaleString('en-IN')} × {noOfSeats} {noOfSeats === 1 ? 'ticket' : 'tickets'}):</span>
-              <span className="font-mono text-slate-200">₹{(basePrice * noOfSeats).toLocaleString('en-IN')}</span>
+              <span className="font-mono text-slate-200">₹{subtotalAirfare.toLocaleString('en-IN')}</span>
             </div>
             <div className="flex justify-between text-slate-400">
               <span>Aviation Security & Taxes (12%):</span>
               <span className="font-mono text-slate-200">₹{taxesAndFees.toLocaleString('en-IN')}</span>
             </div>
+            {ancillariesTotal > 0 && (
+              <div className="flex justify-between text-slate-400">
+                <span>Add-ons (Baggage & Protection):</span>
+                <span className="font-mono text-slate-200">+₹{ancillariesTotal.toLocaleString('en-IN')}</span>
+              </div>
+            )}
+            {discountAmount > 0 && (
+              <div className="flex justify-between text-emerald-400 font-semibold">
+                <span>Promo Discount ({appliedPromo?.code}):</span>
+                <span className="font-mono">-₹{discountAmount.toLocaleString('en-IN')}</span>
+              </div>
+            )}
             <div className="border-t border-slate-700 pt-2 flex justify-between font-bold text-sm text-white">
               <span>Total Amount Payable:</span>
               <span className="text-emerald-400 text-base font-black">₹{totalPayable.toLocaleString('en-IN')}</span>

@@ -23,6 +23,12 @@ export const FlightSearch = () => {
   const [departureAirportId, setDepartureAirportId] = useState('');
   const [arrivalAirportId, setArrivalAirportId] = useState('');
   const [departureDate, setDepartureDate] = useState('');
+  const [returnDate, setReturnDate] = useState('');
+
+  // Round-trip leg selection states
+  const [activeLeg, setActiveLeg] = useState('outbound'); // outbound | inbound
+  const [selectedOutboundFlight, setSelectedOutboundFlight] = useState(null);
+  const [selectedReturnFlight, setSelectedReturnFlight] = useState(null);
 
   // Filter states
   const [maxPrice, setMaxPrice] = useState(10000);
@@ -117,6 +123,10 @@ export const FlightSearch = () => {
     setDepartureAirportId('');
     setArrivalAirportId('');
     setDepartureDate('');
+    setReturnDate('');
+    setSelectedOutboundFlight(null);
+    setSelectedReturnFlight(null);
+    setActiveLeg('outbound');
     setMaxPrice(10000);
     setMinSeats(0);
     setSelectedAirlines([]);
@@ -131,7 +141,7 @@ export const FlightSearch = () => {
     );
   };
 
-  // Client-side filtering & sorting
+  // Client-side filtering & sorting for outbound flights
   const filteredFlights = useMemo(() => {
     return flights.filter((flight) => {
       // Airline prefix filter
@@ -163,6 +173,26 @@ export const FlightSearch = () => {
       return 0;
     });
   }, [filteredFlights, sortBy]);
+
+  // Compute return flights (reverse route: arrival -> departure)
+  const sortedReturnFlights = useMemo(() => {
+    return flights.filter((f) => {
+      if (arrivalAirportId && f.departureAirportId !== Number(arrivalAirportId)) return false;
+      if (departureAirportId && f.arrivalAirportId !== Number(departureAirportId)) return false;
+      if (maxPrice && maxPrice < 10000 && f.price > maxPrice) return false;
+      if (minSeats && minSeats > 0 && f.totalSeats < minSeats) return false;
+      if (selectedAirlines.length > 0) {
+        const prefix = f.flightNumber?.split('-')[0];
+        if (!selectedAirlines.includes(prefix)) return false;
+      }
+      return true;
+    }).sort((a, b) => {
+      if (sortBy === 'price-asc') return a.price - b.price;
+      if (sortBy === 'price-desc') return b.price - a.price;
+      if (sortBy === 'seats-desc') return (b.totalSeats || 0) - (a.totalSeats || 0);
+      return 0;
+    });
+  }, [flights, arrivalAirportId, departureAirportId, maxPrice, minSeats, selectedAirlines, sortBy]);
 
   return (
     <div className="space-y-8 pb-12">
@@ -296,9 +326,9 @@ export const FlightSearch = () => {
             </div>
 
             {/* Departure Date */}
-            <div className="md:col-span-6 space-y-1.5">
+            <div className={`${tripType === 'roundtrip' ? 'md:col-span-3' : 'md:col-span-6'} space-y-1.5`}>
               <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-blue-400" /> Travel Date
+                <Calendar className="w-3.5 h-3.5 text-blue-400" /> Departure Date
               </label>
               <input
                 type="date"
@@ -307,6 +337,22 @@ export const FlightSearch = () => {
                 className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-all"
               />
             </div>
+
+            {/* Return Date (Round-Trip Only) */}
+            {tripType === 'roundtrip' && (
+              <div className="md:col-span-3 space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-400" /> Return Date
+                </label>
+                <input
+                  type="date"
+                  min={departureDate || ''}
+                  value={returnDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  className="w-full bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+            )}
 
             {/* Max Budget Slider */}
             <div className="md:col-span-6 space-y-1.5">
@@ -481,12 +527,101 @@ export const FlightSearch = () => {
         </div>
       </section>
 
+      {/* Round-Trip Leg Switcher Tabs (Only in Round-Trip Mode) */}
+      {tripType === 'roundtrip' && (
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveLeg('outbound')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                  activeLeg === 'outbound'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                <Plane className="w-3.5 h-3.5 text-blue-300" />
+                <span>1. Outbound Flight</span>
+                {selectedOutboundFlight && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono">
+                    {selectedOutboundFlight.flightNumber}
+                  </span>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveLeg('inbound')}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+                  activeLeg === 'inbound'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                }`}
+              >
+                <Plane className="w-3.5 h-3.5 text-indigo-300 rotate-180" />
+                <span>2. Return Flight</span>
+                {selectedReturnFlight && (
+                  <span className="ml-1 px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-mono">
+                    {selectedReturnFlight.flightNumber}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Selected Round-Trip Overview & Action */}
+            {(selectedOutboundFlight || selectedReturnFlight) && (
+              <div className="flex items-center gap-3">
+                <div className="text-right text-xs">
+                  <span className="text-slate-400 block text-[11px]">Combined Round-Trip:</span>
+                  <span className="font-mono font-black text-emerald-400 text-sm">
+                    ₹{(
+                      (selectedOutboundFlight ? Number(selectedOutboundFlight.price) : 0) +
+                      (selectedReturnFlight ? Number(selectedReturnFlight.price) : 0)
+                    ).toLocaleString('en-IN')}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const primaryFlight = selectedOutboundFlight || selectedReturnFlight;
+                    const combinedPrice = (
+                      (selectedOutboundFlight ? Number(selectedOutboundFlight.price) : 0) +
+                      (selectedReturnFlight ? Number(selectedReturnFlight.price) : 0)
+                    );
+                    setSelectedFlightForBooking({
+                      ...primaryFlight,
+                      price: combinedPrice,
+                      isRoundTrip: true,
+                      outboundFlight: selectedOutboundFlight,
+                      returnFlight: selectedReturnFlight,
+                    });
+                  }}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-500/20 transition-all flex items-center gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  Book Both Flights
+                </button>
+              </div>
+            )}
+          </div>
+
+          <p className="text-[11px] text-slate-400">
+            {activeLeg === 'outbound'
+              ? 'Showing departure flight options. Select your preferred outbound journey.'
+              : 'Showing return flight options matching your destination back to origin.'}
+          </p>
+        </div>
+      )}
+
       {/* Flight Results Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-          Available Flight Routes
+          {tripType === 'roundtrip' 
+            ? (activeLeg === 'outbound' ? 'Select Outbound Flight' : 'Select Return Flight')
+            : 'Available Flight Routes'}
           <span className="text-xs font-normal text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-            {sortedFlights.length} {sortedFlights.length === 1 ? 'flight' : 'flights'} available
+            {(activeLeg === 'outbound' ? sortedFlights : sortedReturnFlights).length} flights available
           </span>
         </h2>
       </div>
@@ -520,17 +655,40 @@ export const FlightSearch = () => {
       )}
 
       {/* Results List */}
-      {!loading && !error && sortedFlights.length > 0 && (
+      {!loading && !error && (activeLeg === 'outbound' ? sortedFlights : sortedReturnFlights).length > 0 && (
         <div className="space-y-4">
-          {sortedFlights.map((flight) => (
-            <FlightCard
-              key={flight.id}
-              flight={flight}
-              airportsMap={airportsMap}
-              citiesMap={citiesMap}
-              onSelect={(selected) => setSelectedFlightForBooking(selected)}
-            />
-          ))}
+          {(activeLeg === 'outbound' ? sortedFlights : sortedReturnFlights).map((flight) => {
+            const isSelectedOutbound = selectedOutboundFlight?.id === flight.id;
+            const isSelectedReturn = selectedReturnFlight?.id === flight.id;
+
+            return (
+              <div key={flight.id} className="relative">
+                <FlightCard
+                  flight={flight}
+                  airportsMap={airportsMap}
+                  citiesMap={citiesMap}
+                  onSelect={(selected) => {
+                    if (tripType === 'roundtrip') {
+                      if (activeLeg === 'outbound') {
+                        setSelectedOutboundFlight(selected);
+                        setActiveLeg('inbound');
+                      } else {
+                        setSelectedReturnFlight(selected);
+                      }
+                    } else {
+                      setSelectedFlightForBooking(selected);
+                    }
+                  }}
+                />
+                {tripType === 'roundtrip' && (isSelectedOutbound || isSelectedReturn) && (
+                  <div className="absolute top-3 right-3 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs flex items-center gap-1 shadow-md">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    {isSelectedOutbound ? 'Selected Outbound' : 'Selected Return'}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

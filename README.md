@@ -12,6 +12,9 @@ Modern Single-Page Application (SPA) providing an interactive user interface for
 - **Interactive 2D Aircraft Cabin Seat Map**: Visual fuselage floorplan (Airbus A320neo) featuring Business Class (2-2 configuration), Economy Class (3-3 configuration), Emergency Exit extra legroom rows, deterministic real-time occupancy indicators, and multi-passenger interactive seat assignment.
 - **Multi-Passenger Travel Manifest**: Collects full legal name, title, age category, seat selection, and dietary preferences for all traveling passengers with instant boarding pass generation.
 - **Self-Service Trip Cancellation & Saga Restock**: Allows passengers to cancel confirmed trips directly with reason attribution, real-time refund calculation breakdown (90% net refund), and automatic seat inventory replenishment in the Flights service.
+- **Round-Trip Itinerary Selector**: Dual-date picker with interactive Outbound & Inbound leg switching and combined price consolidation.
+- **Ancillary Add-ons & Travel Protection**: Baggage allowance tiers (+15kg check-in, +25kg heavy load), SkyAssure comprehensive travel insurance, and Priority Boarding passes.
+- **Promo Discount Voucher Engine**: Real-time coupon validator with instant savings deduction (`SKYFLOW10`, `FLYFIRST`, `SUMMER2026`).
 - **HTTP Client**: [Axios](https://axios-http.com/)
   - **Request Interceptor**: Injects `x-access-token` JWT and auto-generates/propagates `x-correlation-id` for distributed end-to-end tracing.
   - **Response Interceptor**: Extracts correlation headers and provides centralized downstream error handling (503 Service Unavailable, 504 Gateway Timeout).
