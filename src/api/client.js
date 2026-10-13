@@ -4,7 +4,7 @@ const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:3005';
 
 const apiClient = axios.create({
   baseURL: GATEWAY_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
