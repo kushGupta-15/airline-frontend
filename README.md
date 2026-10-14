@@ -62,6 +62,27 @@ flowchart TD
 
 ---
 
+## 📸 Visual Walkthrough & Interface Showcase
+
+Explore the SkyFlow Airlines interface through high-resolution captures of all primary application views, booking modals, and operations panels.
+
+| Feature View | Screenshot Preview |
+| :--- | :--- |
+| **1. Flight Search & Dynamic Catalog**<br/>• Origin/destination airport selection<br/>• Real-time budget slider (₹2,000–₹10,000+)<br/>• Partner airline filters (Air India, Vistara, IndiGo) | ![Flight Search Catalog](docs/screenshots/01_flight_search_catalog.png) |
+| **2. Multi-Passenger Booking & Vouchers**<br/>• Dynamic traveler manifest form (up to 6 passengers)<br/>• Baggage tiers (+15kg check-in, +25kg heavy load)<br/>• Real-time voucher discounts (`SKYFLOW10`) | ![Booking Checkout Modal](docs/screenshots/02_booking_checkout_modal.png) |
+| **3. 2D Cabin Fuselage Seat Map**<br/>• Airbus A320neo cabin floorplan<br/>• Business Class (2-2), Economy (3-3), Exit Rows<br/>• Live occupied vs available seat indicators | ![2D Aircraft Cabin Seat Map](docs/screenshots/03_cabin_seat_map.png) |
+| **4. Digital Electronic Boarding Pass**<br/>• Instant PNR reference issuance (`SKF-0000X`)<br/>• Boarding gate terminal & barcode graphic<br/>• Multi-passenger traveler switcher tabs | ![Digital Boarding Pass](docs/screenshots/04_digital_boarding_pass.png) |
+| **5. Live Flight Status Radar**<br/>• Real-time search by flight number or route<br/>• 6 operational milestone progress stages<br/>• Departure gate, baggage belt, destination weather | ![Flight Status Radar](docs/screenshots/05_flight_status_radar.png) |
+| **6. Promotional Deals & Hubs**<br/>• Hand-picked travel packages & seasonal discounts<br/>• Popular domestic route highlights | ![Special Offers Hub](docs/screenshots/06_special_offers_hub.png) |
+| **7. Passenger Authentication Portal**<br/>• Dual-tab sign-in and registration interface<br/>• Client-side validation & JWT session persistence | ![Authentication Portal](docs/screenshots/07_authentication_portal.png) |
+| **8. My Trips Dashboard**<br/>• Active customer itineraries & seat badges<br/>• Offline boarding pass retrieval<br/>• Self-service cancellation with distributed saga restock | ![Passenger Trips Dashboard](docs/screenshots/08_passenger_trips_dashboard.png) |
+| **9. AOCC — Flight Dispatcher**<br/>• Schedule new flights & assign aircraft fleets<br/>• Departure/arrival slot time pickers & base fares | ![Admin Schedule Dispatcher](docs/screenshots/09_admin_schedule_dispatcher.png) |
+| **10. AOCC — Operations Status Dispatcher**<br/>• Real-time status broadcaster (`ON TIME`, `BOARDING`, `DELAYED`, `AIRBORNE`)<br/>• Synchronized with passenger radars | ![Admin Operations Status](docs/screenshots/10_admin_operations_status.png) |
+| **11. AOCC — Passenger Manifest Inspector**<br/>• Flight load factor % and gross revenue metrics<br/>• Full passenger manifest table with seat allocations | ![Admin Manifest Inspector](docs/screenshots/11_admin_manifest_inspector.png) |
+| **12. Microservice Health & Gateway Telemetry**<br/>• Real-time cluster health statuses<br/>• API Gateway uptime and memory telemetry | ![System Health Telemetry](docs/screenshots/12_system_health_telemetry.png) |
+
+---
+
 ## ✨ Key Features & User Journeys
 
 ### 1. 🔍 Flight Discovery & Dynamic Filtering
